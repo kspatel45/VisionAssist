@@ -7,18 +7,53 @@
     <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/kspatel45/VisionAssist/main/Vision%20Assist%20logo.png">
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        :root { --signifi-navy: #0D202D; --accent-cyan: #72E0FB; --danger: #ff4444; }
+        :root { --signifi-navy: #0D202D; --accent-cyan: #72E0FB; --danger: #ff4444; --success: #28a745; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body, html { height: 100%; width: 100%; overflow: hidden; background: var(--signifi-navy); font-family: 'Segoe UI', sans-serif; }
-        #kiosk-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-image: url('https://raw.githubusercontent.com/kspatel45/VisionAssist/main/TED%20background.jpg'); background-size: cover; background-position: center; z-index: 1; }
+        
+        #kiosk-bg { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            background-image: url('https://raw.githubusercontent.com/kspatel45/VisionAssist/main/TED%20background.jpg'); 
+            background-size: cover; background-position: center; z-index: 1; 
+        }
+
+        /* --- CALL BUTTON --- */
+        #call-btn-container {
+            position: absolute; bottom: 10%; left: 50%; transform: translateX(-50%);
+            z-index: 10; text-align: center; width: 100%;
+        }
+
+        .btn-call {
+            background: var(--success);
+            color: white;
+            padding: 25px 50px;
+            border: none;
+            border-radius: 50px;
+            font-size: 2rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            animation: flash-pulse 1.5s infinite;
+            border: 4px solid white;
+        }
+
+        @keyframes flash-pulse {
+            0% { transform: scale(1); background-color: var(--success); box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7); }
+            50% { transform: scale(1.05); background-color: #34ce57; box-shadow: 0 0 20px 10px rgba(40, 167, 69, 0); }
+            100% { transform: scale(1); background-color: var(--success); box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); }
+        }
+
+        /* --- VIDEO STAGE --- */
         #video-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 100; display: none; flex-direction: column; align-items: center; justify-content: center; }
         #remote-video { width: 100%; height: 100%; object-fit: cover; }
         #local-preview { position: absolute; top: 30px; right: 30px; width: 220px; height: 140px; border-radius: 15px; border: 2px solid var(--accent-cyan); object-fit: cover; z-index: 110; transform: scaleX(-1); }
+        
         .controls { position: absolute; bottom: 40px; display: flex; gap: 15px; z-index: 120; }
-        .btn { padding: 15px 25px; border-radius: 30px; border: none; cursor: pointer; font-weight: bold; background: rgba(255,255,255,0.2); color: white; backdrop-filter: blur(10px); }
-        .btn-end { background: var(--danger); width: 150px; }
+        .btn-ui { padding: 15px 25px; border-radius: 30px; border: none; cursor: pointer; font-weight: bold; background: rgba(255,255,255,0.2); color: white; backdrop-filter: blur(10px); }
+        .btn-end { background: var(--danger); width: 180px; font-size: 1.2rem; }
         .off { background: var(--danger) !important; }
-        #call-trigger { position: absolute; z-index: 10; bottom: 0; left: 0; width: 100%; height: 50%; cursor: pointer; border: none; background: transparent; }
+
         #admin-lock { position: fixed; top: 0; right: 0; width: 80px; height: 80px; z-index: 999; cursor: pointer; }
         .admin-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; align-items: center; justify-content: center; }
         .admin-content { background: white; padding: 30px; border-radius: 15px; width: 400px; color: #333; }
@@ -28,15 +63,18 @@
 <body>
     <div id="kiosk-bg"></div>
     <div id="admin-lock" onclick="openAdmin()"></div>
-    <button id="call-trigger" onclick="startCall()"></button>
+
+    <div id="call-btn-container">
+        <button class="btn-call" onclick="startCall()">Call Technician</button>
+    </div>
 
     <div id="video-overlay">
         <video id="remote-video" autoplay playsinline></video>
         <video id="local-preview" autoplay muted playsinline></video>
         <div class="controls">
-            <button class="btn" id="k-mute" onclick="toggleMute()">Mute</button>
-            <button class="btn" id="k-video" onclick="toggleVideo()">Video Off</button>
-            <button class="btn btn-end" onclick="hangUp()">END CALL</button>
+            <button class="btn-ui" id="k-mute" onclick="toggleMute()">Mute</button>
+            <button class="btn-ui" id="k-video" onclick="toggleVideo()">Video Off</button>
+            <button class="btn-ui btn-end" onclick="hangUp()">END CALL</button>
         </div>
     </div>
 
@@ -47,13 +85,13 @@
             <input type="text" id="target-id-input" placeholder="e.g. 12345">
             <label>Camera:</label> <select id="cam-select"></select>
             <label>Mic:</label> <select id="mic-select"></select>
-            <button class="btn" style="background:#444; width:100%; color:white; margin-top:10px;" onclick="loadDevices()">Refresh Devices</button>
-            <button class="btn" style="background:green; width:100%; color:white; margin-top:5px;" onclick="saveSettings()">Save & Close</button>
+            <button class="btn-ui" style="background:#444; width:100%; color:white; margin-top:10px;" onclick="loadDevices()">Refresh Devices</button>
+            <button class="btn-ui" style="background:green; width:100%; color:white; margin-top:5px;" onclick="saveSettings()">Save & Close</button>
         </div>
     </div>
 
     <script>
-        let peer = new Peer('Kiosk-' + Math.floor(Math.random()*1000)); 
+        let peer = new Peer('Kiosk-' + Math.floor(Math.random()*10000)); 
         let localStream, currentCall;
 
         async function startCall() {
@@ -69,31 +107,67 @@
                 document.getElementById('local-preview').srcObject = localStream;
                 document.getElementById('video-overlay').style.display = 'flex';
                 
-                // Call the specific code entered in Admin
                 currentCall = peer.call('Expert-' + targetId, localStream);
-                currentCall.on('stream', rs => { document.getElementById('remote-video').srcObject = rs; });
-                currentCall.on('error', () => alert("Technician is not online. Check Code."));
-            } catch (err) { alert("Camera Access Error"); }
+
+                currentCall.on('stream', rs => { 
+                    document.getElementById('remote-video').srcObject = rs; 
+                });
+
+                // Auto-close if tech hangs up
+                currentCall.on('close', () => {
+                    cleanupAndReload();
+                });
+
+            } catch (err) { 
+                alert("Camera Access Error. Please check Admin settings."); 
+            }
         }
 
-        function toggleMute() { localStream.getAudioTracks()[0].enabled = !localStream.getAudioTracks()[0].enabled; document.getElementById('k-mute').classList.toggle('off'); }
-        function toggleVideo() { localStream.getVideoTracks()[0].enabled = !localStream.getVideoTracks()[0].enabled; document.getElementById('k-video').classList.toggle('off'); }
-        function hangUp() { location.reload(); }
-        function openAdmin() { if(prompt("Pass:")==="123") { 
-            document.getElementById('admin-panel').style.display='flex'; 
-            document.getElementById('target-id-input').value = localStorage.getItem('target-id') || "";
-            loadDevices(); 
-        } }
+        function toggleMute() { 
+            const audioTrack = localStream.getAudioTracks()[0];
+            audioTrack.enabled = !audioTrack.enabled;
+            document.getElementById('k-mute').classList.toggle('off');
+            document.getElementById('k-mute').innerText = audioTrack.enabled ? "Mute" : "Unmute";
+        }
+
+        function toggleVideo() { 
+            const videoTrack = localStream.getVideoTracks()[0];
+            videoTrack.enabled = !videoTrack.enabled;
+            document.getElementById('k-video').classList.toggle('off');
+            document.getElementById('k-video').innerText = videoTrack.enabled ? "Video Off" : "Video On";
+        }
+
+        function hangUp() { 
+            if(currentCall) currentCall.close(); 
+            cleanupAndReload();
+        }
+
+        function cleanupAndReload() {
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
+            location.reload();
+        }
+
+        function openAdmin() { 
+            if(prompt("Pass:")==="123") { 
+                document.getElementById('admin-panel').style.display='flex'; 
+                document.getElementById('target-id-input').value = localStorage.getItem('target-id') || "";
+                loadDevices(); 
+            } 
+        }
+
         async function loadDevices() {
             const devices = await navigator.mediaDevices.enumerateDevices();
             const cam = document.getElementById('cam-select'), mic = document.getElementById('mic-select');
             cam.innerHTML = mic.innerHTML = "";
             devices.forEach(d => {
-                let opt = new Option(d.label || "Default", d.deviceId);
+                let opt = new Option(d.label || "Default Device", d.deviceId);
                 if(d.kind==='videoinput') cam.add(opt);
                 if(d.kind==='audioinput') mic.add(opt);
             });
         }
+
         function saveSettings() {
             localStorage.setItem('target-id', document.getElementById('target-id-input').value);
             localStorage.setItem('kiosk-cam', document.getElementById('cam-select').value);
