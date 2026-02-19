@@ -17,34 +17,24 @@
             background-size: cover; background-position: center; z-index: 1; 
         }
 
-        /* --- CALL BUTTON --- */
         #call-btn-container {
             position: absolute; bottom: 10%; left: 50%; transform: translateX(-50%);
             z-index: 10; text-align: center; width: 100%;
         }
 
         .btn-call {
-            background: var(--success);
-            color: white;
-            padding: 25px 50px;
-            border: none;
-            border-radius: 50px;
-            font-size: 2rem;
-            font-weight: bold;
-            text-transform: uppercase;
-            cursor: pointer;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            animation: flash-pulse 1.5s infinite;
-            border: 4px solid white;
+            background: var(--success); color: white; padding: 25px 50px;
+            border: 4px solid white; border-radius: 50px; font-size: 2rem;
+            font-weight: bold; text-transform: uppercase; cursor: pointer;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); animation: flash-pulse 1.5s infinite;
         }
 
         @keyframes flash-pulse {
-            0% { transform: scale(1); background-color: var(--success); box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7); }
-            50% { transform: scale(1.05); background-color: #34ce57; box-shadow: 0 0 20px 10px rgba(40, 167, 69, 0); }
-            100% { transform: scale(1); background-color: var(--success); box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); }
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7); }
+            50% { transform: scale(1.05); box-shadow: 0 0 20px 10px rgba(40, 167, 69, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); }
         }
 
-        /* --- VIDEO STAGE --- */
         #video-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 100; display: none; flex-direction: column; align-items: center; justify-content: center; }
         #remote-video { width: 100%; height: 100%; object-fit: cover; }
         #local-preview { position: absolute; top: 30px; right: 30px; width: 220px; height: 140px; border-radius: 15px; border: 2px solid var(--accent-cyan); object-fit: cover; z-index: 110; transform: scaleX(-1); }
@@ -80,13 +70,13 @@
 
     <div id="admin-panel" class="admin-modal">
         <div class="admin-content">
-            <h3>Kiosk Admin Settings</h3>
-            <label><b>Technician Station Code:</b></label>
+            <h3>Kiosk Admin</h3>
+            <label><b>Technician Pairing Code:</b></label>
             <input type="text" id="target-id-input" placeholder="e.g. 12345">
             <label>Camera:</label> <select id="cam-select"></select>
             <label>Mic:</label> <select id="mic-select"></select>
-            <button class="btn-ui" style="background:#444; width:100%; color:white; margin-top:10px;" onclick="loadDevices()">Refresh Devices</button>
-            <button class="btn-ui" style="background:green; width:100%; color:white; margin-top:5px;" onclick="saveSettings()">Save & Close</button>
+            <button onclick="loadDevices()" style="width:100%; padding:10px; margin-top:10px;">Refresh Devices</button>
+            <button onclick="saveSettings()" style="width:100%; padding:10px; background:green; color:white; margin-top:5px;">Save & Close</button>
         </div>
     </div>
 
@@ -96,7 +86,7 @@
 
         async function startCall() {
             const targetId = localStorage.getItem('target-id');
-            if(!targetId) { alert("Please set Technician Code in Admin Panel first."); return; }
+            if(!targetId) { alert("Please set Pairing Code in Admin."); return; }
 
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({
@@ -108,44 +98,25 @@
                 document.getElementById('video-overlay').style.display = 'flex';
                 
                 currentCall = peer.call('Expert-' + targetId, localStream);
-
-                currentCall.on('stream', rs => { 
-                    document.getElementById('remote-video').srcObject = rs; 
-                });
-
-                // Auto-close if tech hangs up
-                currentCall.on('close', () => {
-                    cleanupAndReload();
-                });
-
-            } catch (err) { 
-                alert("Camera Access Error. Please check Admin settings."); 
-            }
+                currentCall.on('stream', rs => { document.getElementById('remote-video').srcObject = rs; });
+                currentCall.on('close', () => cleanupAndReload());
+            } catch (err) { alert("Camera Access Error."); }
         }
 
         function toggleMute() { 
-            const audioTrack = localStream.getAudioTracks()[0];
-            audioTrack.enabled = !audioTrack.enabled;
+            localStream.getAudioTracks()[0].enabled = !localStream.getAudioTracks()[0].enabled;
             document.getElementById('k-mute').classList.toggle('off');
-            document.getElementById('k-mute').innerText = audioTrack.enabled ? "Mute" : "Unmute";
         }
 
         function toggleVideo() { 
-            const videoTrack = localStream.getVideoTracks()[0];
-            videoTrack.enabled = !videoTrack.enabled;
+            localStream.getVideoTracks()[0].enabled = !localStream.getVideoTracks()[0].enabled;
             document.getElementById('k-video').classList.toggle('off');
-            document.getElementById('k-video').innerText = videoTrack.enabled ? "Video Off" : "Video On";
         }
 
-        function hangUp() { 
-            if(currentCall) currentCall.close(); 
-            cleanupAndReload();
-        }
-
+        function hangUp() { if(currentCall) currentCall.close(); cleanupAndReload(); }
+        
         function cleanupAndReload() {
-            if (localStream) {
-                localStream.getTracks().forEach(track => track.stop());
-            }
+            if (localStream) localStream.getTracks().forEach(t => t.stop());
             location.reload();
         }
 
@@ -162,7 +133,7 @@
             const cam = document.getElementById('cam-select'), mic = document.getElementById('mic-select');
             cam.innerHTML = mic.innerHTML = "";
             devices.forEach(d => {
-                let opt = new Option(d.label || "Default Device", d.deviceId);
+                let opt = new Option(d.label || "Default", d.deviceId);
                 if(d.kind==='videoinput') cam.add(opt);
                 if(d.kind==='audioinput') mic.add(opt);
             });
