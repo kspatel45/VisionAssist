@@ -3,142 +3,130 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VisionAssist | Signifi T.E.D</title>
+    <title>VisionAssist Kiosk</title>
+    <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/kspatel45/VisionAssist/main/Vision%20Assist%20logo.png">
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        :root {
-            --signifi-navy: #0D202D;
-            --accent-cyan: #72E0FB;
-            --white: #ffffff;
-        }
-
+        :root { --signifi-navy: #0D202D; --accent-cyan: #72E0FB; --danger: #ff4444; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        body, html { 
-            height: 100%; width: 100%; 
-            overflow: hidden; 
-            background: var(--signifi-navy);
-            font-family: 'Segoe UI', sans-serif;
-        }
+        body, html { height: 100%; width: 100%; overflow: hidden; background: var(--signifi-navy); font-family: 'Segoe UI', sans-serif; }
 
-        /* --- BACKGROUND --- */
         #kiosk-bg {
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background-image: url('https://raw.githubusercontent.com/kspatel45/VisionAssist/main/TED%20background.jpg');
-            background-size: cover;
-            background-position: center;
-            z-index: 1;
+            background-size: cover; background-position: center; z-index: 1;
         }
 
-        /* --- BOTTOM HALF TRIGGER --- */
-        #call-trigger {
-            position: absolute;
-            z-index: 10;
-            bottom: 0; left: 0;
-            width: 100%; height: 50%;
-            cursor: pointer;
-            border: none;
-            background: transparent;
-            outline: none;
-            -webkit-tap-highlight-color: transparent;
+        #video-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(13, 32, 45, 0.98); z-index: 100;
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+            backdrop-filter: blur(20px);
         }
-
-        /* --- ADMIN (TOP RIGHT) --- */
-        #admin-lock {
-            position: fixed;
-            top: 0; right: 0;
-            width: 80px; height: 80px;
-            z-index: 999;
-            background: transparent;
-        }
-
-        /* --- MODAL STYLE --- */
-        #admin-modal {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9); z-index: 1000;
-            align-items: center; justify-content: center;
-            padding: 20px;
-        }
-
-        .admin-content {
-            background: white; padding: 30px; border-radius: 15px; 
-            width: 100%; max-width: 400px; color: #333;
-        }
-
-        input { width: 100%; padding: 12px; margin: 15px 0; border: 1px solid #ddd; border-radius: 8px; }
         
-        button.save-btn {
-            width: 100%; padding: 15px; background: var(--signifi-navy); 
-            color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;
-        }
+        #remote-video { width: 100%; height: 100%; background: #000; object-fit: cover; }
+        #local-preview { position: absolute; top: 30px; right: 30px; width: 220px; height: 140px; border-radius: 15px; border: 2px solid var(--accent-cyan); object-fit: cover; z-index: 110; transform: scaleX(-1); }
 
-        /* --- STATUS FEEDBACK --- */
-        #status-msg {
-            position: absolute;
-            bottom: 10%; width: 100%;
-            text-align: center; color: var(--accent-cyan);
-            font-size: 1.2rem; font-weight: 300;
-            z-index: 5; opacity: 0; transition: 0.5s;
-        }
+        .controls { position: absolute; bottom: 40px; display: flex; gap: 20px; z-index: 120; }
+        .btn-end { background: var(--danger); width: 180px; height: 70px; border-radius: 40px; color: white; border: none; font-weight: bold; cursor: pointer; font-size: 1.1rem; }
+
+        #call-trigger { position: absolute; z-index: 10; bottom: 0; left: 0; width: 100%; height: 50%; cursor: pointer; border: none; background: transparent; }
+        #admin-lock { position: fixed; top: 0; right: 0; width: 80px; height: 80px; z-index: 999; cursor: pointer; }
+
+        /* Admin Modal */
+        .admin-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; align-items: center; justify-content: center; }
+        .admin-content { background: white; padding: 30px; border-radius: 15px; width: 90%; max-width: 450px; color: #333; }
+        select { width: 100%; padding: 10px; margin: 10px 0 20px; border-radius: 5px; border: 1px solid #ccc; }
+        .admin-btn { background: var(--signifi-navy); color: white; border: none; padding: 12px; width: 100%; border-radius: 5px; cursor: pointer; font-weight: bold; margin-bottom: 8px; }
     </style>
 </head>
 <body>
-
     <div id="kiosk-bg"></div>
-    <div id="status-msg">Opening Secure Line...</div>
-
-    <div id="admin-lock" onclick="showAdmin()"></div>
+    <div id="admin-lock" onclick="openAdmin()"></div>
     <button id="call-trigger" onclick="startCall()"></button>
 
-    <div id="admin-modal">
+    <div id="video-overlay">
+        <video id="remote-video" autoplay playsinline></video>
+        <video id="local-preview" autoplay muted playsinline></video>
+        <div class="controls"><button class="btn-end" onclick="hangUp()">END CALL</button></div>
+    </div>
+
+    <div id="admin-panel" class="admin-modal">
         <div class="admin-content">
-            <h2 style="color:var(--signifi-navy)">Device Settings</h2>
-            <input type="text" id="url-input" placeholder="Paste Teams URL here...">
-            <button class="save-btn" onclick="saveAdmin()">SAVE CONFIG</button>
-            <p onclick="hideAdmin()" style="text-align:center; margin-top:15px; cursor:pointer; color:#888;">Close</p>
+            <h3>Kiosk Hardware Settings</h3>
+            <label>Camera:</label> <select id="cam-select"></select>
+            <label>Microphone:</label> <select id="mic-select"></select>
+            <label>Speaker (Chrome/Edge):</label> <select id="spk-select"></select>
+            <button class="admin-btn" onclick="loadDevices()">REFRESH DEVICES</button>
+            <button class="admin-btn" style="background:#28a745;" onclick="saveSettings()">SAVE & REFRESH</button>
+            <button class="admin-btn" style="background:#888;" onclick="closeAdmin()">CANCEL</button>
         </div>
     </div>
 
     <script>
-        let teamsWindow = null;
+        const peer = new Peer('Signifi-Kiosk-Unit-01'); 
+        let localStream, currentCall;
 
-        function startCall() {
-            const url = localStorage.getItem('va_teams_url');
-            if (!url) {
-                alert("Please configure the URL in the Top-Right corner.");
-                return;
-            }
+        async function startCall() {
+            try {
+                // Flexible HD constraints
+                const constraints = {
+                    video: { 
+                        deviceId: localStorage.getItem('kiosk-cam') ? { exact: localStorage.getItem('kiosk-cam') } : undefined,
+                        width: { ideal: 1280 }, height: { ideal: 720 } 
+                    },
+                    audio: { 
+                        deviceId: localStorage.getItem('kiosk-mic') ? { exact: localStorage.getItem('kiosk-mic') } : undefined,
+                        echoCancellation: true 
+                    }
+                };
 
-            const status = document.getElementById('status-msg');
-            status.style.opacity = "1";
+                localStream = await navigator.mediaDevices.getUserMedia(constraints);
+                
+                const remoteVideo = document.getElementById('remote-video');
+                if (localStorage.getItem('kiosk-spk') && remoteVideo.setSinkId) {
+                    await remoteVideo.setSinkId(localStorage.getItem('kiosk-spk'));
+                }
 
-            // Opening a new window bypasses the iFrame security block
-            // We set the size to be large for the 24" screen
-            const width = window.screen.width;
-            const height = window.screen.height;
-            
-            teamsWindow = window.open(url, 'TeamsCall', `width=${width},height=${height},menubar=no,toolbar=no,location=no,status=no`);
-
-            // If the browser blocks the popup
-            if (!teamsWindow || teamsWindow.closed || typeof teamsWindow.closed == 'undefined') {
-                alert("Popup Blocked! Please allow popups for this site in your browser settings.");
-                status.style.opacity = "0";
+                document.getElementById('local-preview').srcObject = localStream;
+                document.getElementById('video-overlay').style.display = 'flex';
+                
+                currentCall = peer.call('Expert-Laptop-Station', localStream);
+                currentCall.on('stream', rs => document.getElementById('remote-video').srcObject = rs);
+                currentCall.on('close', () => location.reload());
+            } catch (err) {
+                console.error(err);
+                alert("Could not start camera. Check Admin settings.");
             }
         }
 
-        function showAdmin() {
-            const saved = localStorage.getItem('va_teams_url');
-            if(saved) document.getElementById('url-input').value = saved;
-            document.getElementById('admin-modal').style.display = 'flex';
+        function hangUp() { if(currentCall) currentCall.close(); location.reload(); }
+        function openAdmin() { if(prompt("Password:") === "123") { document.getElementById('admin-panel').style.display = 'flex'; loadDevices(); } }
+        function closeAdmin() { document.getElementById('admin-panel').style.display = 'none'; }
+
+        async function loadDevices() {
+            try {
+                await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const cam = document.getElementById('cam-select'), mic = document.getElementById('mic-select'), spk = document.getElementById('spk-select');
+                cam.innerHTML = mic.innerHTML = spk.innerHTML = "";
+                devices.forEach(d => {
+                    const opt = new Option(d.label || `Device ${d.deviceId.slice(0,5)}`, d.deviceId);
+                    if(d.kind === 'videoinput') cam.add(opt);
+                    if(d.kind === 'audioinput') mic.add(opt);
+                    if(d.kind === 'audiooutput') spk.add(opt);
+                });
+                cam.value = localStorage.getItem('kiosk-cam');
+                mic.value = localStorage.getItem('kiosk-mic');
+                spk.value = localStorage.getItem('kiosk-spk');
+            } catch (err) { alert("Permission denied."); }
         }
 
-        function hideAdmin() { document.getElementById('admin-modal').style.display = 'none'; }
-
-        function saveAdmin() {
-            const val = document.getElementById('url-input').value;
-            localStorage.setItem('va_teams_url', val);
-            hideAdmin();
+        function saveSettings() {
+            localStorage.setItem('kiosk-cam', document.getElementById('cam-select').value);
+            localStorage.setItem('kiosk-mic', document.getElementById('mic-select').value);
+            localStorage.setItem('kiosk-spk', document.getElementById('spk-select').value);
+            location.reload();
         }
     </script>
 </body>
