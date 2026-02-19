@@ -2,172 +2,201 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VisionAssist | Signifi T.E.D</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Indie Player</title>
+    <meta name="theme-color" content="#0a0e12">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        :root {
-            --signifi-navy: #0D202D;
-            --accent-cyan: #72E0FB;
-            --white: #ffffff;
-        }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        body, html { 
-            height: 100%; width: 100%; 
-            overflow: hidden; 
-            background: var(--signifi-navy);
-            font-family: 'Segoe UI', sans-serif;
-        }
-
-        /* --- RESPONSIVE BACKGROUND --- */
-        #kiosk-bg {
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background-image: url('https://raw.githubusercontent.com/kspatel45/VisionAssist/main/TED%20background.jpg');
-            background-size: cover;
-            background-position: center;
-            z-index: 1;
-        }
-
-        /* --- FULL BOTTOM-HALF TRIGGER --- */
-        #call-trigger {
-            position: absolute;
-            z-index: 10;
-            bottom: 0; left: 0;
-            width: 100%; height: 50%;
-            cursor: pointer;
-            border: none;
-            background: transparent;
-            outline: none;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        /* --- SECRET ADMIN (TOP RIGHT) --- */
-        #admin-lock {
-            position: fixed;
-            top: 0; right: 0;
-            width: 100px; height: 100px;
-            z-index: 999;
-            background: transparent;
-        }
-
-        /* --- VIDEO CALL OVERLAY --- */
-        #call-overlay {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(13, 32, 45, 0.98);
-            z-index: 100;
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            backdrop-filter: blur(20px);
-            padding: 20px;
-        }
-
-        #video-container {
-            width: 100%;
-            max-width: 900px;
-            height: 75%;
-            background: #000;
-            border-radius: 25px;
-            border: 2px solid var(--accent-cyan);
-            overflow: hidden;
-            box-shadow: 0 40px 80px rgba(0,0,0,0.6);
-        }
-
-        iframe { width: 100%; height: 100%; border: none; }
-
-        .end-btn {
-            margin-top: 30px; 
-            padding: 22px 70px;
-            background: #E53935; 
-            color: white;
-            border: none; 
-            border-radius: 60px;
-            font-size: 1.2rem; 
-            font-weight: bold; 
-            cursor: pointer;
-        }
-
-        /* --- ADMIN PANEL --- */
-        #admin-modal {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.95); z-index: 1000;
-            align-items: center; justify-content: center;
-            padding: 20px;
-        }
-
-        .admin-content {
-            background: white; padding: 40px; border-radius: 20px; 
-            width: 100%; max-width: 450px; color: #333;
-        }
-
-        input { width: 100%; padding: 15px; margin: 20px 0; border: 1px solid #ddd; border-radius: 10px; font-size: 1rem; }
-
-        /* --- MOBILE RESPONSIVENESS --- */
-        @media (max-width: 600px) {
-            #video-container { height: 60%; }
-            .end-btn { width: 90%; padding: 18px; }
-        }
+        :root { --primary: #4169e1; --bg-dark: #0a0e12; --navy: #000080; }
+        body { background-color: var(--bg-dark); color: #f0f6fc; font-family: sans-serif; overflow: hidden; height: 100vh; position: fixed; width: 100%; touch-action: none; }
+        .active-track { border-left: 4px solid var(--primary); background: rgba(65, 105, 225, 0.1) !important; }
+        .glass-player { background: rgba(13, 17, 23, 0.98); backdrop-filter: blur(20px); border-top: 1px solid rgba(255,255,255,0.1); }
+        .tab-active { color: white; border-bottom: 2px solid var(--primary); }
     </style>
 </head>
-<body>
+<body class="flex flex-col">
 
-    <div id="kiosk-bg"></div>
+    <header class="p-4 border-b border-slate-800 bg-[#0d1117] z-50">
+        <div class="max-w-6xl mx-auto flex flex-col gap-3">
+            <div class="flex items-center justify-between">
+                <h1 class="text-xl font-black tracking-tighter">Indie<span class="text-[#4169e1]">Player</span></h1>
+                <div id="connectionStatus" class="text-[10px] uppercase font-bold text-green-500">Online</div>
+            </div>
 
-    <div id="admin-lock" onclick="showAdmin()"></div>
-
-    <button id="call-trigger" onclick="startCall()"></button>
-
-    <div id="call-overlay">
-        <div id="video-container">
-            <iframe id="teams-iframe" allow="camera; microphone; autoplay; display-capture;"></iframe>
+            <div class="flex gap-2">
+                <input type="text" id="searchInput" placeholder="Search music..." class="flex-grow bg-[#161b22] border border-slate-700 rounded-full px-4 py-2 text-sm outline-none focus:border-blue-500">
+                <button onclick="triggerSearch()" class="bg-[#4169e1] px-6 py-2 rounded-full text-xs font-bold">Search</button>
+            </div>
+            
+            <div class="flex gap-4 text-xs font-bold text-slate-500">
+                <button onclick="switchTab('all')" id="tab-all" class="pb-1 tab-active">Discovery</button>
+                <button onclick="switchTab('fav')" id="tab-fav" class="pb-1">Favorites</button>
+            </div>
         </div>
-        <button class="end-btn" onclick="endCall()">EXIT CONVERSATION</button>
-    </div>
+    </header>
 
-    <div id="admin-modal">
-        <div class="admin-content">
-            <h2 style="color:var(--signifi-navy)">Device Settings</h2>
-            <p style="margin-top:10px; font-size:0.9rem;">Paste Teams/MeetNow Link:</p>
-            <input type="text" id="url-input" placeholder="https://teams.microsoft.com/...">
-            <button onclick="saveAdmin()" style="width:100%; padding:18px; background:var(--signifi-navy); color:white; border:none; border-radius:10px; font-weight:bold; cursor:pointer;">SAVE CHANGES</button>
-            <p onclick="hideAdmin()" style="text-align:center; margin-top:20px; cursor:pointer; color:#888;">Close</p>
+    <main class="flex-grow overflow-y-auto p-4 pb-48">
+        <div id="resultsGrid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 text-center">
+            <p class="col-span-full py-20 text-slate-500">Loading your music library...</p>
         </div>
-    </div>
+    </main>
+
+    <footer class="fixed bottom-0 left-0 right-0 glass-player z-50">
+        <div class="px-2">
+            <input type="range" id="progressBar" value="0" class="w-full h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer" oninput="isSeeking=true" onchange="seekAudio()">
+        </div>
+        <div class="flex items-center justify-between p-4 max-w-6xl mx-auto">
+            <div class="flex items-center gap-3 w-1/3 truncate">
+                <img id="playerCover" class="w-10 h-10 rounded bg-slate-800 object-cover">
+                <div class="truncate">
+                    <p id="playerTitle" class="text-xs font-bold truncate">Not Playing</p>
+                    <p id="playerArtist" class="text-[10px] text-slate-500 truncate">Select a song</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-6">
+                <button onclick="changeTrack(-1)"><i class="fas fa-step-backward text-lg"></i></button>
+                <button id="masterPlayBtn" onclick="togglePlay()" class="w-12 h-12 bg-white text-black rounded-full flex items-center justify-center"><i class="fas fa-play ml-1"></i></button>
+                <button onclick="changeTrack(1)"><i class="fas fa-step-forward text-lg"></i></button>
+            </div>
+            <div class="w-1/3 text-right">
+                <button id="footerFavBtn" onclick="toggleFavorite(event)" class="text-slate-500"><i class="far fa-heart text-xl"></i></button>
+            </div>
+        </div>
+    </footer>
+
+    <audio id="mainAudio" crossorigin="anonymous" playsinline></audio>
 
     <script>
-        function startCall() {
-            const url = localStorage.getItem('va_teams_url');
-            if (!url) {
-                alert("Please tap top-right to configure the meeting link.");
+        const audio = document.getElementById('mainAudio');
+        let playlist = [], favorites = JSON.parse(localStorage.getItem('favs') || '[]'), currentIndex = -1, isSeeking = false, currentView = 'all';
+        
+        // Bypassing API blocks with multiple mirrors
+        const APIs = ["https://saavn.dev/api", "https://jiosaavn-api-beta.vercel.app/api"];
+
+        window.onload = () => {
+            fetchSongs('search/songs?query=Trending&limit=25');
+            // Background Audio Setup
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.setActionHandler('play', () => audio.play());
+                navigator.mediaSession.setActionHandler('pause', () => audio.pause());
+                navigator.mediaSession.setActionHandler('previoustrack', () => changeTrack(-1));
+                navigator.mediaSession.setActionHandler('nexttrack', () => changeTrack(1));
+            }
+        };
+
+        async function fetchSongs(endpoint) {
+            const status = document.getElementById('connectionStatus');
+            for (let baseUrl of APIs) {
+                try {
+                    status.textContent = "Connecting...";
+                    const res = await fetch(`${baseUrl}/${endpoint}`);
+                    if (!res.ok) throw new Error("API Down");
+                    const result = await res.json();
+                    playlist = result.data?.results || result.data || [];
+                    if (playlist.length > 0) {
+                        status.textContent = "Online";
+                        status.className = "text-[10px] uppercase font-bold text-green-500";
+                        renderView(); 
+                        return;
+                    }
+                } catch (e) {
+                    console.warn("Mirror failed, trying next mirror...");
+                }
+            }
+            status.textContent = "Offline / API Error";
+            status.className = "text-[10px] uppercase font-bold text-red-500";
+        }
+
+        function renderView() {
+            const list = currentView === 'all' ? playlist : favorites;
+            const grid = document.getElementById('resultsGrid');
+            if (list.length === 0) {
+                grid.innerHTML = `<p class="col-span-full py-20 text-slate-500">Nothing found here.</p>`;
                 return;
             }
-            document.getElementById('teams-iframe').src = url;
-            document.getElementById('call-overlay').style.display = 'flex';
+            grid.innerHTML = list.map((s, i) => `
+                <div onclick="playSong(${i})" class="p-3 rounded-xl bg-slate-800/30 relative active:scale-95 transition ${currentIndex === i ? 'active-track' : ''}">
+                    <img src="${s.image[s.image.length-1].url}" class="w-full aspect-square object-cover rounded-lg mb-2 shadow-lg">
+                    <p class="text-[11px] font-bold truncate">${s.name}</p>
+                    <button onclick="toggleFavoriteCard(event, ${i})" class="absolute top-4 right-4 text-white drop-shadow-md">
+                        <i class="${favorites.some(f => f.id === s.id) ? 'fas fa-heart text-red-500' : 'far fa-heart'}"></i>
+                    </button>
+                </div>
+            `).join('');
+            updateFooterFavIcon();
         }
 
-        function endCall() {
-            document.getElementById('teams-iframe').src = "";
-            document.getElementById('call-overlay').style.display = 'none';
+        function playSong(index) {
+            const list = currentView === 'all' ? playlist : favorites;
+            if (index < 0 || index >= list.length) return;
+            currentIndex = index;
+            const song = list[index];
+            
+            // Bypass potential stream blocks by picking the highest quality available
+            const streamUrl = song.downloadUrl[song.downloadUrl.length - 1].url;
+            audio.src = streamUrl;
+            
+            document.getElementById('playerTitle').textContent = song.name;
+            document.getElementById('playerArtist').textContent = song.artists?.primary?.[0]?.name || 'Unknown Artist';
+            document.getElementById('playerCover').src = song.image[song.image.length-1].url;
+            
+            audio.play().catch(e => {
+                console.error("Autoplay bypass: user interaction required.");
+            });
+            
+            updateMediaSession(song);
+            renderView();
         }
 
-        function showAdmin() {
-            const saved = localStorage.getItem('va_teams_url');
-            if(saved) document.getElementById('url-input').value = saved;
-            document.getElementById('admin-modal').style.display = 'flex';
+        function toggleFavoriteCard(e, idx) {
+            e.stopPropagation();
+            const song = (currentView === 'all' ? playlist : favorites)[idx];
+            handleFavLogic(song);
         }
 
-        function hideAdmin() { document.getElementById('admin-modal').style.display = 'none'; }
-
-        function saveAdmin() {
-            const val = document.getElementById('url-input').value;
-            localStorage.setItem('va_teams_url', val);
-            hideAdmin();
+        function toggleFavorite(e) {
+            if (currentIndex === -1) return;
+            const song = (currentView === 'all' ? playlist : favorites)[currentIndex];
+            handleFavLogic(song);
         }
+
+        function handleFavLogic(song) {
+            const fIdx = favorites.findIndex(f => f.id === song.id);
+            if (fIdx > -1) favorites.splice(fIdx, 1);
+            else favorites.unshift(song);
+            localStorage.setItem('favs', JSON.stringify(favorites));
+            renderView();
+        }
+
+        function updateFooterFavIcon() {
+            if (currentIndex === -1) return;
+            const song = (currentView === 'all' ? playlist : favorites)[currentIndex];
+            const isFav = favorites.some(f => f.id === song.id);
+            document.getElementById('footerFavBtn').className = isFav ? "text-red-500" : "text-slate-500";
+            document.getElementById('footerFavBtn').innerHTML = `<i class="${isFav ? 'fas' : 'far'} fa-heart text-xl"></i>`;
+        }
+
+        function updateMediaSession(song) {
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.metadata = new MediaMetadata({
+                    title: song.name,
+                    artist: song.artists?.primary?.[0]?.name,
+                    artwork: [{ src: song.image[song.image.length-1].url, sizes: '512x512', type: 'image/jpeg' }]
+                });
+            }
+        }
+
+        audio.onended = () => changeTrack(1);
+        audio.onplay = () => document.getElementById('masterPlayBtn').innerHTML = '<i class="fas fa-pause"></i>';
+        audio.onpause = () => document.getElementById('masterPlayBtn').innerHTML = '<i class="fas fa-play ml-1"></i>';
+        audio.ontimeupdate = () => { if (!isSeeking) document.getElementById('progressBar').value = (audio.currentTime / audio.duration) * 100 || 0; };
+        
+        function togglePlay() { if (audio.src) audio.paused ? audio.play() : audio.pause(); }
+        function changeTrack(dir) { playSong(currentIndex + dir); }
+        function seekAudio() { isSeeking = false; audio.currentTime = (document.getElementById('progressBar').value / 100) * audio.duration; }
+        function triggerSearch() { fetchSongs(`search/songs?query=${encodeURIComponent(document.getElementById('searchInput').value)}&limit=30`); }
+        function switchTab(v) { currentView = v; document.getElementById('tab-all').className = v==='all'?'pb-1 tab-active':'pb-1'; document.getElementById('tab-fav').className = v==='fav'?'pb-1 tab-active':'pb-1'; renderView(); }
     </script>
 </body>
 </html>
