@@ -22,7 +22,7 @@
         #admin-lock { position: fixed; top: 0; right: 0; width: 80px; height: 80px; z-index: 999; cursor: pointer; }
         .admin-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; align-items: center; justify-content: center; }
         .admin-content { background: white; padding: 30px; border-radius: 15px; width: 400px; color: #333; }
-        select { width: 100%; padding: 10px; margin: 10px 0; }
+        select, input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 5px; }
     </style>
 </head>
 <body>
@@ -42,7 +42,9 @@
 
     <div id="admin-panel" class="admin-modal">
         <div class="admin-content">
-            <h3>Kiosk Hardware</h3>
+            <h3>Kiosk Admin Settings</h3>
+            <label><b>Technician Station Code:</b></label>
+            <input type="text" id="target-id-input" placeholder="e.g. 12345">
             <label>Camera:</label> <select id="cam-select"></select>
             <label>Mic:</label> <select id="mic-select"></select>
             <button class="btn" style="background:#444; width:100%; color:white; margin-top:10px;" onclick="loadDevices()">Refresh Devices</button>
@@ -51,64 +53,49 @@
     </div>
 
     <script>
-        const peer = new Peer('Signifi-Kiosk-Unit-01'); 
+        let peer = new Peer('Kiosk-' + Math.floor(Math.random()*1000)); 
         let localStream, currentCall;
 
         async function startCall() {
-            const savedCam = localStorage.getItem('kiosk-cam');
-            const savedMic = localStorage.getItem('kiosk-mic');
-
-            // Strategy: Try HD first, if fail, try any camera
-            const hdConstraints = {
-                video: { deviceId: savedCam ? { exact: savedCam } : undefined, width: { ideal: 1280 }, height: { ideal: 720 } },
-                audio: { deviceId: savedMic ? { exact: savedMic } : undefined }
-            };
-            const simpleConstraints = { video: true, audio: true };
+            const targetId = localStorage.getItem('target-id');
+            if(!targetId) { alert("Please set Technician Code in Admin Panel first."); return; }
 
             try {
-                localStream = await navigator.mediaDevices.getUserMedia(hdConstraints);
-            } catch (e) {
-                console.warn("HD failed, trying basic quality...");
-                try {
-                    localStream = await navigator.mediaDevices.getUserMedia(simpleConstraints);
-                } catch (err) {
-                    alert("Fatal: No camera found or access denied.");
-                    return;
-                }
-            }
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    video: { deviceId: localStorage.getItem('kiosk-cam') ? {exact: localStorage.getItem('kiosk-cam')} : undefined, width: {ideal: 1280} },
+                    audio: { deviceId: localStorage.getItem('kiosk-mic') ? {exact: localStorage.getItem('kiosk-mic')} : undefined }
+                }).catch(() => navigator.mediaDevices.getUserMedia({video: true, audio: true}));
 
-            document.getElementById('local-preview').srcObject = localStream;
-            document.getElementById('video-overlay').style.display = 'flex';
-            
-            currentCall = peer.call('Expert-Laptop-Station', localStream);
-            currentCall.on('stream', rs => { document.getElementById('remote-video').srcObject = rs; });
-            currentCall.on('close', () => location.reload());
+                document.getElementById('local-preview').srcObject = localStream;
+                document.getElementById('video-overlay').style.display = 'flex';
+                
+                // Call the specific code entered in Admin
+                currentCall = peer.call('Expert-' + targetId, localStream);
+                currentCall.on('stream', rs => { document.getElementById('remote-video').srcObject = rs; });
+                currentCall.on('error', () => alert("Technician is not online. Check Code."));
+            } catch (err) { alert("Camera Access Error"); }
         }
 
-        function toggleMute() {
-            localStream.getAudioTracks()[0].enabled = !localStream.getAudioTracks()[0].enabled;
-            document.getElementById('k-mute').classList.toggle('off');
-        }
-        function toggleVideo() {
-            localStream.getVideoTracks()[0].enabled = !localStream.getVideoTracks()[0].enabled;
-            document.getElementById('k-video').classList.toggle('off');
-        }
-        function hangUp() { if(currentCall) currentCall.close(); location.reload(); }
-        function openAdmin() { if(prompt("Pass:")==="123") { document.getElementById('admin-panel').style.display='flex'; loadDevices(); } }
+        function toggleMute() { localStream.getAudioTracks()[0].enabled = !localStream.getAudioTracks()[0].enabled; document.getElementById('k-mute').classList.toggle('off'); }
+        function toggleVideo() { localStream.getVideoTracks()[0].enabled = !localStream.getVideoTracks()[0].enabled; document.getElementById('k-video').classList.toggle('off'); }
+        function hangUp() { location.reload(); }
+        function openAdmin() { if(prompt("Pass:")==="123") { 
+            document.getElementById('admin-panel').style.display='flex'; 
+            document.getElementById('target-id-input').value = localStorage.getItem('target-id') || "";
+            loadDevices(); 
+        } }
         async function loadDevices() {
-            try {
-                await navigator.mediaDevices.getUserMedia({audio:true, video:true});
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                const cam = document.getElementById('cam-select'), mic = document.getElementById('mic-select');
-                cam.innerHTML = mic.innerHTML = "";
-                devices.forEach(d => {
-                    let opt = new Option(d.label || "Default", d.deviceId);
-                    if(d.kind==='videoinput') cam.add(opt);
-                    if(d.kind==='audioinput') mic.add(opt);
-                });
-            } catch(e) { alert("Enable permissions first."); }
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const cam = document.getElementById('cam-select'), mic = document.getElementById('mic-select');
+            cam.innerHTML = mic.innerHTML = "";
+            devices.forEach(d => {
+                let opt = new Option(d.label || "Default", d.deviceId);
+                if(d.kind==='videoinput') cam.add(opt);
+                if(d.kind==='audioinput') mic.add(opt);
+            });
         }
         function saveSettings() {
+            localStorage.setItem('target-id', document.getElementById('target-id-input').value);
             localStorage.setItem('kiosk-cam', document.getElementById('cam-select').value);
             localStorage.setItem('kiosk-mic', document.getElementById('mic-select').value);
             document.getElementById('admin-panel').style.display='none';
