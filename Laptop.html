@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Expert Dashboard | Signifi</title>
+    <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/kspatel45/VisionAssist/main/Vision%20Assist%20logo.png">
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        :root { --signifi-navy: #0D202D; --accent-cyan: #72E0FB; }
+        body { background: var(--signifi-navy); color: white; font-family: sans-serif; margin: 0; display: flex; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
+        
+        #home-screen-ui { display: flex; flex-direction: column; align-items: center; justify-content: space-between; height: 90vh; width: 100%; padding: 40px 0; }
+        .logo-box { background: white; padding: 15px 30px; border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        .va-logo { width: 320px; height: auto; }
+        .signifi-logo { width: 200px; height: auto; }
+
+        #status-card { text-align: center; z-index: 10; }
+        #init-btn { background: var(--accent-cyan); color: var(--signifi-navy); padding: 15px 30px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1rem; }
+        
+        #incoming-call-ui { display: none; }
+        .btn-answer { background: #28a745; color: white; padding: 20px 60px; border: none; border-radius: 50px; cursor: pointer; font-weight: bold; font-size: 1.4rem; margin-top: 25px; animation: pulse 1.5s infinite; }
+
+        #video-stage { display: none; position: relative; width: 100vw; height: 100vh; background: #000; }
+        #remote-video { width: 100%; height: 100%; object-fit: cover; }
+        #local-video { position: absolute; top: 30px; right: 30px; width: 280px; height: 180px; border: 2px solid var(--accent-cyan); border-radius: 15px; object-fit: cover; z-index: 20; transform: scaleX(-1); }
+        
+        #admin-lock { position: fixed; top: 0; right: 0; width: 60px; height: 60px; cursor: pointer; z-index: 100; }
+        .admin-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; align-items: center; justify-content: center; }
+        .admin-content { background: white; padding: 30px; border-radius: 15px; width: 450px; color: #333; }
+        select { width: 100%; padding: 10px; margin: 10px 0; }
+
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7); }
+            70% { transform: scale(1.05); box-shadow: 0 0 0 15px rgba(40, 167, 69, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); }
+        }
+    </style>
+</head>
+<body>
+    <div id="admin-lock" onclick="openAdmin()"></div>
+    <audio id="ringtone-player" loop src="https://assets.mixkit.co/active_storage/sfx/1359/1359-preview.mp3"></audio>
+
+    <div id="home-screen-ui">
+        <div class="logo-box"><img src="https://raw.githubusercontent.com/kspatel45/VisionAssist/main/Vision%20Assist%20logo.png" class="va-logo"></div>
+        
+        <div id="status-card">
+            <h2 id="state">System Ready</h2>
+            <button id="init-btn" onclick="activateSystem()">ACTIVATE EXPERT STATION</button>
+            <div id="incoming-call-ui">
+                <h2 style="color: #28a745;">INCOMING CALL...</h2>
+                <button class="btn-answer" onclick="acceptCall()">ANSWER CALL</button>
+            </div>
+        </div>
+
+        <div class="logo-box"><img src="https://raw.githubusercontent.com/kspatel45/VisionAssist/main/signifi-logo.png" class="signifi-logo"></div>
+    </div>
+
+    <div id="video-stage">
+        <video id="remote-video" autoplay playsinline></video>
+        <video id="local-video" autoplay muted playsinline></video>
+        <div style="position:absolute; bottom:40px; left:50%; transform:translateX(-50%); z-index:30;">
+            <button onclick="hangUp()" style="background:#ff4444; color:white; padding:15px 45px; border:none; border-radius:10px; font-weight:bold; cursor:pointer;">Hang Up</button>
+        </div>
+    </div>
+
+    <div id="admin-panel" class="admin-modal">
+        <div class="admin-content">
+            <h3>Expert Device Settings</h3>
+            <label>Camera:</label> <select id="cam-exp"></select>
+            <label>Microphone:</label> <select id="mic-exp"></select>
+            <label>Speaker:</label> <select id="spk-exp"></select>
+            <button onclick="loadDevices()" style="width:100%; padding:10px; background:#444; color:white; border:none; margin-top:10px;">REFRESH</button>
+            <button onclick="saveSettings()" style="width:100%; padding:10px; background:var(--signifi-navy); color:white; border:none; margin-top:5px;">SAVE & APPLY</button>
+            <button onclick="closeAdmin()" style="width:100%; padding:10px; background:#888; color:white; border:none; margin-top:5px;">CANCEL</button>
+        </div>
+    </div>
+
+    <script>
+        const peer = new Peer('Expert-Laptop-Station');
+        const ringtone = document.getElementById('ringtone-player');
+        let activeCall, localStream;
+
+        function activateSystem() {
+            document.getElementById('init-btn').style.display = 'none';
+            document.getElementById('state').innerText = "Expert Station: ONLINE";
+        }
+
+        peer.on('call', call => { 
+            activeCall = call; 
+            ringtone.play().catch(e => {});
+            document.getElementById('status-card').querySelector('h2').style.display = 'none';
+            document.getElementById('incoming-call-ui').style.display = 'block'; 
+            activeCall.on('close', () => location.reload()); 
+        });
+
+        async function acceptCall() {
+            try {
+                ringtone.pause();
+                const constraints = {
+                    video: { deviceId: localStorage.getItem('exp-cam') ? { exact: localStorage.getItem('exp-cam') } : undefined, width: {ideal: 1280} },
+                    audio: { deviceId: localStorage.getItem('exp-mic') ? { exact: localStorage.getItem('exp-mic') } : undefined }
+                };
+                localStream = await navigator.mediaDevices.getUserMedia(constraints);
+                document.getElementById('local-video').srcObject = localStream;
+                activeCall.answer(localStream);
+                
+                document.getElementById('home-screen-ui').style.display = 'none';
+                document.getElementById('video-stage').style.display = 'block';
+                activeCall.on('stream', rs => document.getElementById('remote-video').srcObject = rs);
+            } catch (err) { alert("Hardware Error."); }
+        }
+
+        function hangUp() { if(activeCall) activeCall.close(); location.reload(); }
+        function openAdmin() { if(prompt("Password:") === "123") { document.getElementById('admin-panel').style.display = 'flex'; loadDevices(); } }
+        function closeAdmin() { document.getElementById('admin-panel').style.display = 'none'; }
+        
+        async function loadDevices() {
+            await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const cam = document.getElementById('cam-exp'), mic = document.getElementById('mic-exp'), spk = document.getElementById('spk-exp');
+            cam.innerHTML = mic.innerHTML = spk.innerHTML = "";
+            devices.forEach(d => {
+                const opt = new Option(d.label || "Device", d.deviceId);
+                if(d.kind === 'videoinput') cam.add(opt);
+                if(d.kind === 'audioinput') mic.add(opt);
+                if(d.kind === 'audiooutput') spk.add(opt);
+            });
+        }
+        function saveSettings() {
+            localStorage.setItem('exp-cam', document.getElementById('cam-exp').value);
+            localStorage.setItem('exp-mic', document.getElementById('mic-exp').value);
+            localStorage.setItem('exp-spk', document.getElementById('spk-exp').value);
+            location.reload();
+        }
+    </script>
+</body>
+</html>
