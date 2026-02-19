@@ -45,9 +45,8 @@
             <h3>Kiosk Hardware</h3>
             <label>Camera:</label> <select id="cam-select"></select>
             <label>Mic:</label> <select id="mic-select"></select>
-            <button onclick="loadDevices()" style="width:100%; padding:10px; margin-top:10px;">Refresh</button>
-            <button onclick="saveSettings()" style="width:100%; padding:10px; background:green; color:white; margin-top:5px;">Save</button>
-            <button onclick="closeAdmin()" style="width:100%; padding:10px; margin-top:5px;">Cancel</button>
+            <button class="btn" style="background:#444; width:100%; color:white; margin-top:10px;" onclick="loadDevices()">Refresh Devices</button>
+            <button class="btn" style="background:green; width:100%; color:white; margin-top:5px;" onclick="saveSettings()">Save & Close</button>
         </div>
     </div>
 
@@ -56,21 +55,34 @@
         let localStream, currentCall;
 
         async function startCall() {
+            const savedCam = localStorage.getItem('kiosk-cam');
+            const savedMic = localStorage.getItem('kiosk-mic');
+
+            // Strategy: Try HD first, if fail, try any camera
+            const hdConstraints = {
+                video: { deviceId: savedCam ? { exact: savedCam } : undefined, width: { ideal: 1280 }, height: { ideal: 720 } },
+                audio: { deviceId: savedMic ? { exact: savedMic } : undefined }
+            };
+            const simpleConstraints = { video: true, audio: true };
+
             try {
-                const constraints = {
-                    video: { deviceId: localStorage.getItem('kiosk-cam') ? { exact: localStorage.getItem('kiosk-cam') } : undefined, width: {ideal: 1280} },
-                    audio: { deviceId: localStorage.getItem('kiosk-mic') ? { exact: localStorage.getItem('kiosk-mic') } : undefined }
-                };
-                localStream = await navigator.mediaDevices.getUserMedia(constraints);
-                document.getElementById('local-preview').srcObject = localStream;
-                document.getElementById('video-overlay').style.display = 'flex';
-                
-                currentCall = peer.call('Expert-Laptop-Station', localStream);
-                currentCall.on('stream', remoteStream => {
-                    document.getElementById('remote-video').srcObject = remoteStream;
-                });
-                currentCall.on('close', () => location.reload());
-            } catch (err) { alert("Camera Error"); }
+                localStream = await navigator.mediaDevices.getUserMedia(hdConstraints);
+            } catch (e) {
+                console.warn("HD failed, trying basic quality...");
+                try {
+                    localStream = await navigator.mediaDevices.getUserMedia(simpleConstraints);
+                } catch (err) {
+                    alert("Fatal: No camera found or access denied.");
+                    return;
+                }
+            }
+
+            document.getElementById('local-preview').srcObject = localStream;
+            document.getElementById('video-overlay').style.display = 'flex';
+            
+            currentCall = peer.call('Expert-Laptop-Station', localStream);
+            currentCall.on('stream', rs => { document.getElementById('remote-video').srcObject = rs; });
+            currentCall.on('close', () => location.reload());
         }
 
         function toggleMute() {
@@ -83,22 +95,23 @@
         }
         function hangUp() { if(currentCall) currentCall.close(); location.reload(); }
         function openAdmin() { if(prompt("Pass:")==="123") { document.getElementById('admin-panel').style.display='flex'; loadDevices(); } }
-        function closeAdmin() { document.getElementById('admin-panel').style.display='none'; }
         async function loadDevices() {
-            await navigator.mediaDevices.getUserMedia({audio:true, video:true});
-            const devices = await navigator.mediaDevices.enumerateDevices();
-            const cam = document.getElementById('cam-select'), mic = document.getElementById('mic-select');
-            cam.innerHTML = mic.innerHTML = "";
-            devices.forEach(d => {
-                let opt = new Option(d.label, d.deviceId);
-                if(d.kind==='videoinput') cam.add(opt);
-                if(d.kind==='audioinput') mic.add(opt);
-            });
+            try {
+                await navigator.mediaDevices.getUserMedia({audio:true, video:true});
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const cam = document.getElementById('cam-select'), mic = document.getElementById('mic-select');
+                cam.innerHTML = mic.innerHTML = "";
+                devices.forEach(d => {
+                    let opt = new Option(d.label || "Default", d.deviceId);
+                    if(d.kind==='videoinput') cam.add(opt);
+                    if(d.kind==='audioinput') mic.add(opt);
+                });
+            } catch(e) { alert("Enable permissions first."); }
         }
         function saveSettings() {
             localStorage.setItem('kiosk-cam', document.getElementById('cam-select').value);
             localStorage.setItem('kiosk-mic', document.getElementById('mic-select').value);
-            location.reload();
+            document.getElementById('admin-panel').style.display='none';
         }
     </script>
 </body>
